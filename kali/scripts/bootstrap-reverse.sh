@@ -22,6 +22,7 @@ CAPABILITIES=()
 START_SERVICES=false
 SKIP_REFRESH=false
 MANUAL_REQUIRED=false
+FAILED=false
 LAST_CAPABILITY_MANUAL=false
 
 for arg in "$@"; do
@@ -29,7 +30,7 @@ for arg in "$@"; do
         --start-services) START_SERVICES=true ;;
         --skip-refresh) SKIP_REFRESH=true ;;
         --list|-l)
-            echo "jadx apktool jeb-pro frida frida-ps idalib-mcp jshookmcp reqable-mcp anything-analyzer idapro r2 rabin2 adb agent-browser ghidra-mcp seclists proxycat burpsuite-mcp nmap pentestswarm"
+            echo "jadx apktool jeb-pro frida frida-ps idalib-mcp jshookmcp reqable-mcp xquik-mcp anything-analyzer idapro r2 rabin2 adb agent-browser ghidra-mcp seclists proxycat burpsuite-mcp nmap pentestswarm bkcrack"
             echo "mcp-kali-server metasploitmcp hexstrike-ai adaptixc2 atomic-operator sstimap xsstrike wpprobe fluxion gef coercer evil-winrm-py netexec responder bloodhound certipy"
             exit 0
             ;;
@@ -55,8 +56,11 @@ if [[ ${#CAPABILITIES[@]} -eq 0 ]]; then
     echo "    adaptixc2 atomic-operator sstimap xsstrike wpprobe fluxion"
     echo ""
     echo "  [MCP 服务]"
-    echo "    jshookmcp reqable-mcp anything-analyzer idapro agent-browser"
+    echo "    jshookmcp reqable-mcp xquik-mcp anything-analyzer idapro agent-browser"
     echo "    mcp-kali-server metasploitmcp hexstrike-ai pentestswarm"
+    echo ""
+    echo "  [CTF 压缩包]"
+    echo "    bkcrack"
     echo ""
     echo "  [其他]"
     echo "    ghidra-mcp seclists proxycat burpsuite-mcp"
@@ -117,6 +121,70 @@ install_npm_global() {
         npm install -g "$package"
     else
         sudo npm install -g "$package" 2>/dev/null || npm install -g "$package"
+    fi
+}
+
+# Git clone at an immutable commit. Existing mismatched checkouts are rejected
+# instead of being overwritten, so local operator changes are never discarded.
+install_git_commit() {
+    local repo="$1"
+    local commit="$2"
+    local install_dir="$3"
+
+    if [[ -d "$install_dir/.git" ]]; then
+        local current status
+        if ! current=$(git -C "$install_dir" rev-parse HEAD 2>/dev/null); then
+            log_err "无法解析现有 checkout HEAD: $install_dir"
+            return 1
+        fi
+        if [[ "$current" != "$commit" ]]; then
+            log_err "Existing checkout is not at pinned commit $commit: $install_dir"
+            log_err "Move it aside explicitly, then retry; bootstrap will not overwrite local changes."
+            return 1
+        fi
+        if ! status=$(git -C "$install_dir" status --porcelain --untracked-files=all); then
+            log_err "无法检查 checkout 状态: $install_dir"
+            return 1
+        fi
+        if [[ -n "$status" ]]; then
+            log_err "现有 checkout 含本地修改，拒绝执行: $install_dir"
+            return 1
+        fi
+        return 0
+    fi
+    if [[ -e "$install_dir" ]]; then
+        log_err "Install path exists but is not a git checkout: $install_dir"
+        return 1
+    fi
+
+    local parent stage resolved status
+    parent=$(dirname "$install_dir")
+    mkdir -p "$parent"
+    stage=$(mktemp -d "$parent/.reverse-bootstrap-XXXXXX") || return 1
+    if ! git init -q "$stage" ||
+       ! git -C "$stage" remote add origin "$repo" ||
+       ! git -C "$stage" fetch --depth 1 origin "$commit" ||
+       ! git -C "$stage" checkout -q --detach FETCH_HEAD; then
+        rm -rf "$stage"
+        return 1
+    fi
+    if ! resolved=$(git -C "$stage" rev-parse HEAD); then
+        rm -rf "$stage"
+        return 1
+    fi
+    if [[ "$resolved" != "$commit" ]]; then
+        log_err "Pinned checkout verification failed (expected $commit, got $resolved)"
+        rm -rf "$stage"
+        return 1
+    fi
+    if ! status=$(git -C "$stage" status --porcelain --untracked-files=all) || [[ -n "$status" ]]; then
+        log_err "Staged checkout is not clean: $stage"
+        rm -rf "$stage"
+        return 1
+    fi
+    if ! mv -T "$stage" "$install_dir"; then
+        rm -rf "$stage"
+        return 1
     fi
 }
 
@@ -292,6 +360,13 @@ manifest_field() {
         '.capabilities[] | select(.name == $name) | .[$field] // empty' "$KALI_MANIFEST"
 }
 
+manifest_dependency() {
+    local name="$1"
+    local field="$2"
+    jq -er --arg name "$name" --arg field "$field" \
+        '.bootstrapDependencies[$name][$field] // empty' "$KALI_MANIFEST"
+}
+
 install_manifest_release() {
     local capability="$1"
     local repo asset_regex install_dir release_tag asset_sha256
@@ -333,7 +408,7 @@ ensure_capability() {
 
     case "$name" in
         # ─── apt 预装/可装的工具 ───
-        nmap|sqlmap|hashcat|hydra|gobuster|ffuf|adb)
+        nmap|sqlmap|hashcat|hydra|gobuster|ffuf|adb|bkcrack)
             install_apt_package "$name"
             ;;
         msfconsole)
@@ -457,14 +532,35 @@ ensure_capability() {
 
         # ─── pip 安装 ───
         frida|frida-ps)
-            install_pip_package "frida-tools"
+            install_pip_package "frida-tools==14.10.4"
             ;;
         idalib-mcp)
-            install_pip_package "ida-pro-mcp" "git+https://github.com/mrexodia/ida-pro-mcp.git"
+            install_pip_package "ida-pro-mcp" "git+https://github.com/mrexodia/ida-pro-mcp.git@f82e6e2517a161b77e738951c3071cd446480ba0"
             log_info "运行 ida-pro-mcp --install 完成 IDA 插件安装"
             ;;
         proxycat)
-            install_pip_package "proxycat"
+            local proxycat_dir="$HOME/tools/ProxyCat"
+            install_git_commit \
+                "https://github.com/honmashironeko/ProxyCat.git" \
+                "2309b713e2e4f574df14c2ace7e8fa6c00eb6941" \
+                "$proxycat_dir"
+            pip3 install --upgrade -r "$proxycat_dir/requirements.txt" --break-system-packages 2>/dev/null \
+                || pip3 install --upgrade -r "$proxycat_dir/requirements.txt"
+            local proxycat_bin_dir="$HOME/.local/bin"
+            local proxycat_wrapper="$proxycat_bin_dir/proxycat"
+            mkdir -p "$proxycat_bin_dir"
+            cat > "$proxycat_wrapper" <<EOF
+#!/usr/bin/env bash
+exec python3 "$proxycat_dir/ProxyCat.py" "\$@"
+EOF
+            chmod 0755 "$proxycat_wrapper"
+            log_info "ProxyCat installed at pinned commit; command wrapper: $proxycat_wrapper"
+            if [[ ":$PATH:" != *":$proxycat_bin_dir:"* ]]; then
+                log_warn "Add $proxycat_bin_dir to PATH before using the proxycat command."
+            fi
+            ;;
+        pwntools)
+            install_pip_package "pwntools==4.15.0"
             ;;
 
         # ─── GitHub Release ───
@@ -484,9 +580,9 @@ ensure_capability() {
         nuclei)
             if command -v go &>/dev/null; then
                 log_info "go install nuclei ..."
-                go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+                go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.8.0
             else
-                install_github_release "projectdiscovery/nuclei" "^nuclei_.*_linux_amd64\\.zip$" "$HOME/tools/nuclei"
+                install_github_release "projectdiscovery/nuclei" "^nuclei_.*_linux_amd64\\.zip$" "$HOME/tools/nuclei" "v3.8.0"
             fi
             ;;
 
@@ -524,11 +620,17 @@ ensure_capability() {
                 "env": {"JSHOOK_BASE_PROFILE": "search"}
             }'
             ;;
+        xquik-mcp)
+            register_mcp_server "xquik" '{
+                "url": "https://xquik.com/mcp"
+            }'
+            log_info "Xquik remote MCP 已登记。请从 MCP 客户端完成 OAuth。"
+            ;;
         agent-browser)
             if ! command -v node &>/dev/null; then
                 install_apt_package "nodejs"
             fi
-            install_npm_global "agent-browser"
+            install_npm_global "agent-browser@0.31.1"
             npx playwright install chromium 2>/dev/null || true
             ;;
 
@@ -565,23 +667,30 @@ ensure_capability() {
 # ─── 服务启动 ──────────────────────────────────────────────────────────────────────
 
 start_anything_analyzer() {
+    local repo_dir="$HOME/tools/anything-analyzer"
+    local repo commit
+    repo=$(manifest_field anything-analyzer repoUrl)
+    commit=$(manifest_field anything-analyzer pinnedCommit)
+    install_git_commit "$repo" "$commit" "$repo_dir" || return 1
+
     if test_tcp_port 23816 2>/dev/null; then
         log_ok "anything-analyzer 已在运行 (port 23816)"
         return 0
     fi
 
-    local repo_dir="$HOME/tools/anything-analyzer"
-
-    if [[ ! -d "$repo_dir" ]]; then
-        log_info "克隆 anything-analyzer ..."
-        git clone https://github.com/Mouseww/anything-analyzer.git "$repo_dir"
+    local pnpm_package pnpm_version current_pnpm_version=''
+    pnpm_package=$(manifest_dependency pnpm package) || return 1
+    pnpm_version=$(manifest_dependency pnpm version) || return 1
+    if command -v pnpm &>/dev/null; then
+        current_pnpm_version=$(pnpm --version 2>/dev/null | head -n1 | tr -d '[:space:]')
+    fi
+    if [[ "$current_pnpm_version" != "$pnpm_version" ]]; then
+        npm install -g "$pnpm_package" || return 1
     fi
 
-    if ! command -v pnpm &>/dev/null; then
-        npm install -g pnpm
-    fi
-
-    (cd "$repo_dir" && pnpm install && nohup pnpm dev > /tmp/anything-analyzer.log 2>&1 &)
+    (cd "$repo_dir" && pnpm install --frozen-lockfile) || return 1
+    install_git_commit "$repo" "$commit" "$repo_dir" || return 1
+    (cd "$repo_dir" && nohup pnpm dev > /tmp/anything-analyzer.log 2>&1 &)
 
     log_info "等待 anything-analyzer 启动 (port 23816) ..."
     if wait_for_port 23816 120; then
@@ -622,6 +731,7 @@ for cap in "${CAPABILITIES[@]}"; do
         fi
     else
         RESULTS+=("{\"name\":\"$cap\",\"status\":\"failed\"}")
+        FAILED=true
     fi
 done
 
@@ -632,7 +742,9 @@ if [[ "$SKIP_REFRESH" != "true" ]]; then
 fi
 
 final_exit_code=0
-if [[ "$MANUAL_REQUIRED" == "true" ]]; then
+if [[ "$FAILED" == "true" ]]; then
+    final_exit_code=1
+elif [[ "$MANUAL_REQUIRED" == "true" ]]; then
     final_exit_code=2
 fi
 

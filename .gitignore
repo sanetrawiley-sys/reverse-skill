@@ -23,6 +23,7 @@ Desktop.ini
 *.tmp
 *.bak
 *.log
+implementation-notes.md
 
 # User-specific config
 .claude/
@@ -37,6 +38,9 @@ issues-index.txt
 # 工具索引（每台机器不同）
 skills/tool-index.md
 skills/tool-index.json
+
+# 本机就绪报告（含用户路径 / 客户端配置，不入库）
+LOCAL-READINESS.md
 
 # 编译产物
 *.exe
@@ -68,13 +72,6 @@ reports/
 # 运行产物 / 实验垃圾
 master-route-*/
 **/master-route-*/
-frontrun-lab-*/
 mcps/
 # local experiment dirs (never ship)
-crypto-case-*/
-skills/crypto-case-*/
 *-scope-*/
-
-# local-only trees (not reverse-skill core; keep out of git)
-web3-skill/
-skills/crypto-analysis/

@@ -23,6 +23,16 @@
     "metasploitmcp — Metasploit MCP Server (apt install metasploitmcp, port 8085)",
     "hexstrike-ai — 150+ 安全工具 MCP 自动化 (apt install hexstrike-ai)"
   ],
+  "bootstrapDependencies": {
+    "pipx": {
+      "package": "pipx==1.16.5",
+      "version": "1.16.5"
+    },
+    "pnpm": {
+      "package": "pnpm@10.24.0",
+      "version": "10.24.0"
+    }
+  },
   "capabilities": [
     {
       "name": "jadx",
@@ -55,7 +65,8 @@
     {
       "name": "frida",
       "bootstrapKind": "pip-package",
-      "pipPackage": "frida-tools",
+      "pipPackage": "frida-tools==14.10.4",
+      "pinnedVersion": "14.10.4",
       "docsUrl": "https://frida.re/",
       "canAutoInstall": true,
       "verifyCommand": "frida",
@@ -64,7 +75,8 @@
     {
       "name": "frida-ps",
       "bootstrapKind": "pip-package",
-      "pipPackage": "frida-tools",
+      "pipPackage": "frida-tools==14.10.4",
+      "pinnedVersion": "14.10.4",
       "docsUrl": "https://frida.re/",
       "canAutoInstall": true,
       "verifyCommand": "frida-ps"
@@ -73,7 +85,8 @@
       "name": "idalib-mcp",
       "bootstrapKind": "pip-package",
       "pipPackage": "ida-pro-mcp",
-      "pipSource": "git+https://github.com/mrexodia/ida-pro-mcp.git",
+      "pipSource": "git+https://github.com/mrexodia/ida-pro-mcp.git@f82e6e2517a161b77e738951c3071cd446480ba0",
+      "pinnedCommit": "f82e6e2517a161b77e738951c3071cd446480ba0",
       "docsUrl": "https://github.com/mrexodia/ida-pro-mcp",
       "canAutoInstall": true,
       "verifyCommand": "ida-pro-mcp",
@@ -92,6 +105,15 @@
       "verifyCommand": "jeb",
       "manualInstallHint": "JEB Pro is commercial. Obtain a valid license from PNF Software, install it manually, then refresh the tool index. Optional community MCP bridges must pass the skill-supply-chain review before registration.",
       "kaliNote": "JEB Pro Linux edition requires a user-provided license and manual installation."
+    },
+    {
+      "name": "binaryninja",
+      "bootstrapKind": "manual",
+      "docsUrl": "https://binary.ninja/",
+      "canAutoInstall": false,
+      "verifyCommand": "binaryninja",
+      "manualInstallHint": "Binary Ninja is commercial software. Obtain a valid Vector 35 license and install it manually. Optional community MCP plugins require supply-chain review and loopback binding.",
+      "kaliNote": "Binary Ninja Linux requires a user-provided license and manual installation."
     },
     {
       "name": "reqable-mcp",
@@ -134,6 +156,19 @@
       "pinnedVersion": "0.3.4"
     },
     {
+      "name": "xquik-mcp",
+      "bootstrapKind": "remote-http-mcp",
+      "mcpNames": [
+        "xquik"
+      ],
+      "mcpUrl": "https://xquik.com/mcp",
+      "docsUrl": "https://docs.xquik.com/mcp/overview",
+      "canAutoInstall": true,
+      "pinPolicy": "remote-service-no-local-install",
+      "verificationMode": "registration-only",
+      "note": "Registers the first-party remote MCP URL only. OAuth is completed in the MCP client. No local package, bridge, or credential is installed."
+    },
+    {
       "name": "anything-analyzer",
       "bootstrapKind": "local-http-mcp",
       "repoUrl": "https://github.com/Mouseww/anything-analyzer",
@@ -153,6 +188,7 @@
       "servicePort": 23816,
       "docsUrl": "https://github.com/Mouseww/anything-analyzer",
       "canAutoInstall": true,
+      "pinnedCommit": "0ed4791688e5186da051c85eb7ddfe4639e14fd2",
       "verificationMode": "service-or-registration"
     },
     {
@@ -213,7 +249,8 @@
     {
       "name": "agent-browser",
       "bootstrapKind": "npm-global",
-      "npmPackage": "agent-browser",
+      "npmPackage": "agent-browser@0.31.1",
+      "pinnedVersion": "0.31.1",
       "postInstall": "npx playwright install chromium",
       "docsUrl": "https://github.com/nicepkg/agent-browser",
       "canAutoInstall": true,
@@ -256,8 +293,10 @@
     },
     {
       "name": "proxycat",
-      "bootstrapKind": "pip-package",
-      "pipPackage": "proxycat",
+      "bootstrapKind": "git-clone",
+      "repo": "https://github.com/honmashironeko/ProxyCat.git",
+      "pinnedCommit": "2309b713e2e4f574df14c2ace7e8fa6c00eb6941",
+      "installDir": "$HOME/tools/ProxyCat",
       "docsUrl": "https://github.com/honmashironeko/ProxyCat",
       "canAutoInstall": true,
       "verifyCommand": "proxycat"
@@ -342,10 +381,13 @@
     {
       "name": "nuclei",
       "bootstrapKind": "go-install",
-      "goPackage": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+      "goPackage": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.8.0",
+      "pinnedVersion": "v3.8.0",
       "fallbackKind": "github-release-tar",
       "repo": "projectdiscovery/nuclei",
       "assetRegex": "^nuclei_.*_linux_amd64\\.zip$",
+      "releaseTag": "v3.8.0",
+      "preferApiDigest": true,
       "docsUrl": "https://github.com/projectdiscovery/nuclei",
       "canAutoInstall": true,
       "verifyCommand": "nuclei",
@@ -525,11 +567,21 @@
     {
       "name": "pwntools",
       "bootstrapKind": "pip-package",
-      "pipPackage": "pwntools",
+      "pipPackage": "pwntools==4.15.0",
+      "pinnedVersion": "4.15.0",
       "docsUrl": "https://github.com/Gallopsled/pwntools",
       "canAutoInstall": true,
       "verifyCommand": "pwntools",
       "kaliNote": "CTF pwn 利用开发框架。Kali 预装，pip 可更新。"
+    },
+    {
+      "name": "bkcrack",
+      "bootstrapKind": "apt-package",
+      "aptPackage": "bkcrack",
+      "docsUrl": "https://github.com/kimci86/bkcrack",
+      "canAutoInstall": true,
+      "verifyCommand": "bkcrack",
+      "kaliNote": "传统 ZipCrypto 已知明文攻击工具；Kali/Debian 可通过 apt 安装。"
     }
   ]
 }

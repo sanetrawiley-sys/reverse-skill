@@ -27,6 +27,7 @@
 | Wi-Fi / 无线 | `wifi-wireless/` | |
 | OT / ICS | `ot-ics/` | 被动优先；写寄存器默认禁止 |
 | macOS | `macos-reverse/` | iOS 仍走 mobile-reverse |
+| Binary Ninja | `binary-ninja-reverse/` | 商业 GUI/Python API；社区 MCP 仅显式启用且默认回环绑定 |
 | 厚客户端 | `thick-client/` | |
 | Go / Rust 二进制 | `go-rust-reverse/` | |
 | 硬件调试口 | `hardware-security/` | 交接 firmware-pentest |
@@ -46,7 +47,7 @@
 | 符号迁移 | `binary-diff/` | |
 | 作战契约 | `ops/` | **特色** |
 | CTF 编排 | `CTF-Sandbox-Orchestrator/` | |
-| 密码学广覆盖 | 本地可选 `crypto-analysis`（gitignore） | 公开核心以 RE 模式文档为主 |
+| 密码学模式识别 | `reverse-engineering` 模式文档 | 与逆向任务共用，不维护独立扩展包 |
 
 ## 明确不整库并入的域（路由未命中时的策略）
 
